@@ -1,7 +1,8 @@
-package com.example.chihwe_app_test;
+package com.example.chihwe_app_test.view;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -10,7 +11,15 @@ import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.Toast;
+
+import com.example.chihwe_app_test.R;
+import com.example.chihwe_app_test.database.DatabaseHelper;
+import com.example.chihwe_app_test.database.modal.News;
+import com.example.chihwe_app_test.utils.Shared_function;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,18 +30,26 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     Context currentcontext;
     SwipeRefreshLayout swipeRefreshLayout;
     RecyclerView recyclerView;
-    int currentpage;
+    ProgressBar progressBar;
+    int currentpage = 1;
     RecyclerView.LayoutManager vertical_LayoutManager;
     Recyleview_adapter adapter;
     Boolean check_updated = false;
+    ImageButton ib_history;
+    private DatabaseHelper db;
 
     ArrayList<String> arrayList_title = new ArrayList<>();
+    ArrayList<String> arrayList_content = new ArrayList<>();
+
+    ArrayList<String> arrayList_published_date = new ArrayList<>();
+    private List<News> newsList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,14 +61,36 @@ public class MainActivity extends AppCompatActivity {
 
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
         recyclerView = findViewById(R.id.recycleview);
+        progressBar = findViewById(R.id.progress_loading);
+        ib_history = findViewById(R.id.ib_history);
 
-        currentpage = 1;
+        db= new DatabaseHelper(currentcontext);
+
+        newsList.addAll(db.getAllNews());
+
+        //Log.d("testnews",newsList.get(0)+"");
 
         vertical_LayoutManager = new LinearLayoutManager(currentcontext);
         recyclerView.setLayoutManager(vertical_LayoutManager);
 
+        if(Shared_function.checkNetworkConnection(currentcontext).equals("No")) {
 
-        new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            Toast.makeText(currentcontext,R.string.internet_not_found,Toast.LENGTH_LONG).show();
+            progressBar.setVisibility(View.GONE);
+        }else {
+
+            new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        }
+
+        ib_history.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(currentcontext, History_read_activity.class);
+                startActivity(intent);
+            }
+        });
 
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -59,10 +98,14 @@ public class MainActivity extends AppCompatActivity {
                 super.onScrollStateChanged(recyclerView, newState);
 
                 if (!recyclerView.canScrollVertically(1) && newState==RecyclerView.SCROLL_STATE_IDLE) {
-                    currentpage = currentpage +1;
 
-                    new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    if(Shared_function.checkNetworkConnection(currentcontext).equals("No")) {
+                        Toast.makeText(currentcontext,R.string.internet_not_found,Toast.LENGTH_LONG).show();
+                    }else {
 
+                        currentpage = currentpage + 1;
+                        new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    }
 
                 }
 
@@ -80,13 +123,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onRefresh() {
 
-                arrayList_title.clear();
-
                 if(Shared_function.checkNetworkConnection(currentcontext).equals("No")) {
 
-                    Toast.makeText(currentcontext,"Not Internet Connection",Toast.LENGTH_LONG).show();
-
+                    Toast.makeText(currentcontext,R.string.internet_not_found,Toast.LENGTH_LONG).show();
+                    swipeRefreshLayout.setRefreshing(false);
                 }else {
+
+                    arrayList_title.clear();
+                    arrayList_content.clear();
+                    arrayList_published_date.clear();
+
                     currentpage =1;
                     check_updated = true;
                     new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -99,6 +145,8 @@ public class MainActivity extends AppCompatActivity {
     //region load_sub_category
     @SuppressLint("StaticFieldLeak")
     private class Load_news_list_task extends AsyncTask<String,Integer,String> {
+
+        Boolean bln_detect_error = false;
 
         @Override
         protected String doInBackground(String[] params) {
@@ -120,11 +168,14 @@ public class MainActivity extends AppCompatActivity {
 
                         arrayList_title.add(jsonObject_item.getString("title"));
 
+                        arrayList_content.add(jsonObject_item.getString("content"));
+
+                        arrayList_published_date.add(jsonObject_item.getString("publishedAt"));
+
                     }
 
                 }else{
-
-                    Toast.makeText(currentcontext,"Some problem to retrieve news,please try again later.",Toast.LENGTH_LONG).show();
+                    bln_detect_error = true;
 
                 }
 
@@ -146,22 +197,29 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String result){
 
+            if (bln_detect_error){
 
-            if (currentpage ==1){
-                adapter = new Recyleview_adapter(currentcontext, arrayList_title);
-                recyclerView.setAdapter(adapter);
+                Toast.makeText(currentcontext,R.string.maximumresult_reached,Toast.LENGTH_LONG).show();
+
+
             }else{
-                adapter.notifyDataSetChanged();
-                //bln_check_finish_load = true;
+
+                if (currentpage ==1){
+                    adapter = new Recyleview_adapter(currentcontext, arrayList_title,arrayList_content,arrayList_published_date,db);
+                    recyclerView.setAdapter(adapter);
+                }else{
+
+                    adapter.notifyDataSetChanged();
+
+                }
+
+                if (check_updated){
+                    swipeRefreshLayout.setRefreshing(false);
+                    Toast.makeText(currentcontext,R.string.updated_news,Toast.LENGTH_SHORT).show();
+                    check_updated = false;
+                }
             }
-
-
-            if (check_updated){
-                swipeRefreshLayout.setRefreshing(false);
-                Toast.makeText(currentcontext,"Updated News",Toast.LENGTH_SHORT).show();
-                check_updated = false;
-            }
-
+            progressBar.setVisibility(View.GONE);
             super.onPostExecute(result);
         }
     }
@@ -170,11 +228,9 @@ public class MainActivity extends AppCompatActivity {
 
         String temp, response = "";
         InputStream inputStream;
-        String url ="";
 
-        url = "https://newsapi.org/v2/top-headlines?country=sg&category=business&apiKey=104d7bd77d0b46f2802fef857710e84f&page="+ currentpage;
+        String url = "https://newsapi.org/v2/top-headlines?country=sg&category=business&apiKey=104d7bd77d0b46f2802fef857710e84f&page="+ currentpage;
 
-        //String requestBody;
         HttpURLConnection urlConnection = null;
         try {
 
@@ -192,11 +248,6 @@ public class MainActivity extends AppCompatActivity {
                 response += temp;
             }
 
-            final int chunkSize = 2048;
-            for (int i = 0; i <response.length(); i += chunkSize) {
-                Log.d("response_1", response.substring(i, Math.min(response.length(), i + chunkSize)));
-
-             }
             return response;
         } catch (Exception e) {
             e.printStackTrace();

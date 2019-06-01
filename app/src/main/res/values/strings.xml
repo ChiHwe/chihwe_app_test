@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Latest News today</string>
+    <string name="internet_not_found">No Internet Connection found.</string>
+    <string name="maximumresult_reached">Maximum Result Reached, please upgrade to paid plan.</string>
+    <string name="updated_news">Updated News</string>
+
+    <string name="back_button">Back</string>
+    <string name="news_title">News</string>
+    <string name="news_history">History</string>
 </resources>
