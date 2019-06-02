@@ -3,7 +3,6 @@ package com.example.chihwe_app_test.view;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,11 +10,9 @@ import android.widget.TextView;
 
 import com.example.chihwe_app_test.R;
 import com.example.chihwe_app_test.database.DatabaseHelper;
-import com.example.chihwe_app_test.database.modal.News;
 import com.example.chihwe_app_test.utils.ItemClickListener;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class Recyleview_adapter extends RecyclerView.Adapter<Recyleview_adapter.ViewHolder> {
 
@@ -93,9 +90,8 @@ public class Recyleview_adapter extends RecyclerView.Adapter<Recyleview_adapter.
                             db.insertNews(arrayList_title.get(position));
                         }
 
-                        Intent intent = new Intent(context, News_details.class);
+                        Intent intent = new Intent(context, News_details_activity.class);
                         intent.putExtra("news_title",arrayList_title.get(position));
-                        intent.putExtra("news_date",arrayList_published_date.get(position));
                         intent.putExtra("news_content",arrayList_content.get(position));
                         context.startActivity(intent);
 

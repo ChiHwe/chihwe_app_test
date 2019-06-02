@@ -5,4 +5,5 @@
     <color name="colorAccent">#D81B60</color>
     <color name="grey_color_20_percent">#F2F2F2</color>
     <color name="grey_color_40_percent">#C8C8C8</color>
+    <color name="purple_background">#6F59EA</color>
 </resources>

@@ -3,7 +3,9 @@ package com.example.chihwe_app_test.view;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -68,15 +70,15 @@ public class MainActivity extends AppCompatActivity {
 
         newsList.addAll(db.getAllNews());
 
-        //Log.d("testnews",newsList.get(0)+"");
-
         vertical_LayoutManager = new LinearLayoutManager(currentcontext);
         recyclerView.setLayoutManager(vertical_LayoutManager);
 
         if(Shared_function.checkNetworkConnection(currentcontext).equals("No")) {
 
             Toast.makeText(currentcontext,R.string.internet_not_found,Toast.LENGTH_LONG).show();
-            progressBar.setVisibility(View.GONE);
+
+            new Load_news_list_offline_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
         }else {
 
             new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -99,11 +101,17 @@ public class MainActivity extends AppCompatActivity {
 
                 if (!recyclerView.canScrollVertically(1) && newState==RecyclerView.SCROLL_STATE_IDLE) {
 
+                    currentpage = currentpage + 1;
+
                     if(Shared_function.checkNetworkConnection(currentcontext).equals("No")) {
-                        Toast.makeText(currentcontext,R.string.internet_not_found,Toast.LENGTH_LONG).show();
+
+                        if (check_shared_preference()) {
+                            new Load_news_list_offline_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                        }else{
+                            Toast.makeText(currentcontext,R.string.internet_not_found,Toast.LENGTH_LONG).show();
+                        }
                     }else {
 
-                        currentpage = currentpage + 1;
                         new Load_news_list_task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                     }
 
@@ -159,6 +167,8 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject json = new JSONObject(toDisplay);
 
                 if (json.getString("status").equals("ok")){
+
+                    store_json_shared_preference(toDisplay);  //for offline mode, still have data to display
 
                     JSONArray jsonArray = json.getJSONArray("articles");
 
@@ -256,6 +266,132 @@ public class MainActivity extends AppCompatActivity {
             if (urlConnection != null) {
                 urlConnection.disconnect();
             }
+        }
+    }
+
+
+    private void store_json_shared_preference(String json_data){
+
+        SharedPreferences sharedPreferences =  PreferenceManager.getDefaultSharedPreferences(currentcontext.getApplicationContext());
+
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("json_offline"+currentpage,json_data);
+        editor.commit();
+
+
+    }
+
+    private boolean check_shared_preference(){
+
+        SharedPreferences sharedPreferences =  PreferenceManager.getDefaultSharedPreferences(currentcontext.getApplicationContext());
+
+        String load_json = sharedPreferences.getString("json_offline"+currentpage, "");
+
+        if (load_json.equals("")){
+            return false;
+        }else{
+            return true;
+        }
+
+    }
+
+    private String load_json_shared_preference(){
+
+        SharedPreferences sharedPreferences =  PreferenceManager.getDefaultSharedPreferences(currentcontext.getApplicationContext());
+
+        String load_json = sharedPreferences.getString("json_offline"+currentpage, "");
+
+        //Log.d("json_load",load_json);
+
+        return load_json;
+
+    }
+
+    @SuppressLint("StaticFieldLeak")
+    private class Load_news_list_offline_task extends AsyncTask<String,Integer,String> {
+
+        Boolean bln_detect_error = false;
+
+        @Override
+        protected String doInBackground(String[] params) {
+
+            String toDisplay  ="";
+
+            toDisplay = load_json_shared_preference();
+
+
+            if (!toDisplay.equals("")) {
+                try {
+
+
+                    JSONObject json = new JSONObject(toDisplay);
+
+                    if (json.getString("status").equals("ok")) {
+
+                        store_json_shared_preference(toDisplay);  //for offline mode, still have data to display
+
+                        JSONArray jsonArray = json.getJSONArray("articles");
+
+                        for (int i = 0; i < jsonArray.length(); i++) {
+
+                            JSONObject jsonObject_item = jsonArray.getJSONObject(i);
+
+                            arrayList_title.add(jsonObject_item.getString("title"));
+
+                            arrayList_content.add(jsonObject_item.getString("content"));
+
+                            arrayList_published_date.add(jsonObject_item.getString("publishedAt"));
+
+                        }
+
+                    } else {
+                        bln_detect_error = true;
+
+                    }
+
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }else{
+               progressBar.setVisibility(View.GONE);
+            }
+
+            return toDisplay;
+        }
+
+        @Override
+        protected void onPreExecute(){
+
+        }
+
+        @Override
+        protected void onPostExecute(String result){
+
+            if (bln_detect_error){
+
+                Toast.makeText(currentcontext,R.string.maximumresult_reached,Toast.LENGTH_LONG).show();
+
+
+            }else{
+                Toast.makeText(currentcontext,R.string.offline_mode,Toast.LENGTH_LONG).show();
+                if (currentpage ==1){
+                    adapter = new Recyleview_adapter(currentcontext, arrayList_title,arrayList_content,arrayList_published_date,db);
+                    recyclerView.setAdapter(adapter);
+                }else{
+
+                    adapter.notifyDataSetChanged();
+
+                }
+
+                if (check_updated){
+                    swipeRefreshLayout.setRefreshing(false);
+                    Toast.makeText(currentcontext,R.string.updated_news,Toast.LENGTH_SHORT).show();
+                    check_updated = false;
+                }
+            }
+            progressBar.setVisibility(View.GONE);
+            super.onPostExecute(result);
         }
     }
 

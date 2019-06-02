@@ -52,7 +52,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         // `id` and `timestamp` will be inserted automatically.
         // no need to add them
         values.put(News.COLUMN_NEWS, news);
-
+        values.put(News.COLUMN_NEWS_CONTENT,news);
         // insert row
         long id = db.insert(News.TABLE_NAME, null, values);
 
@@ -68,7 +68,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         String return_data = null;
         Cursor cursor = db.query(News.TABLE_NAME,
-                new String[]{News.COLUMN_ID, News.COLUMN_NEWS, News.COLUMN_TIMESTAMP},
+                new String[]{News.COLUMN_ID, News.COLUMN_NEWS, News.COLUMN_NEWS_CONTENT, News.COLUMN_TIMESTAMP},
                 News.COLUMN_NEWS + "=?",
                 new String[]{news_title}, null, null, null, null);
 
@@ -108,6 +108,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 News news = new News();
                 news.setId(cursor.getInt(cursor.getColumnIndex(News.COLUMN_ID)));
                 news.setNews(cursor.getString(cursor.getColumnIndex(News.COLUMN_NEWS)));
+                news.setContents(cursor.getString(cursor.getColumnIndex(News.COLUMN_NEWS_CONTENT)));
                 news.setTimestamp(cursor.getString(cursor.getColumnIndex(News.COLUMN_TIMESTAMP)));
 
                 news_list.add(news);

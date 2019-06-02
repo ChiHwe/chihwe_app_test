@@ -9,11 +9,8 @@ import android.widget.TextView;
 
 import com.example.chihwe_app_test.R;
 
-import org.w3c.dom.Text;
 
-import java.util.Date;
-
-public class News_details extends AppCompatActivity {
+public class News_details_activity extends AppCompatActivity {
 
 
     TextView tv_news_title;
